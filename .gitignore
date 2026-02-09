@@ -1,0 +1,33 @@
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.coverprofile
+coverage.out
+
+# Local binaries
+/server
+/client
+/migrate
+/bin/
+/dist/
+
+# IDE/editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local env files
+.env
+.env.*
+!.env.example
