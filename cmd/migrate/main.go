@@ -22,7 +22,12 @@ func main() {
 	flag.BoolVar(&down, "down", false, "Run down migrations")
 	flag.IntVar(&steps, "steps", 0, "Number of migration steps")
 
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("load config: %v", err)
+	}
+	config.BindFlags(flag.CommandLine, &cfg)
+	flag.Parse()
 
 	if cfg.POSTGRES_DSN == "" {
 		log.Fatal("DSN is required")

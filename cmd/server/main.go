@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
 	"os"
 	"os/signal"
@@ -22,11 +23,18 @@ import (
 )
 
 func main() {
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("load config: %v", err)
+	}
+	config.BindFlags(flag.CommandLine, &cfg)
+	flag.Parse()
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	app := fx.New(
-		fx.Provide(config.Load),
+		fx.Supply(cfg),
 		fx.Provide(logger.New),
 		fx.Provide(db.NewDB),
 		fx.Invoke(db.RegisterLifecycle),
@@ -43,6 +51,7 @@ func main() {
 	)
 
 	group, ctx := errgroup.WithContext(ctx)
+	group.SetLimit(2)
 	group.Go(func() error {
 		return app.Start(ctx)
 	})

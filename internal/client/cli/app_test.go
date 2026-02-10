@@ -46,6 +46,30 @@ func TestHasAuthorizedSessionRequiresBothTokens(t *testing.T) {
 	}
 }
 
+func TestHasAuthorizedTokens(t *testing.T) {
+	if !HasAuthorizedTokens("access", "refresh") {
+		t.Fatal("expected true when both tokens are set")
+	}
+	if HasAuthorizedTokens("", "refresh") {
+		t.Fatal("expected false when access token is missing")
+	}
+	if HasAuthorizedTokens("access", "") {
+		t.Fatal("expected false when refresh token is missing")
+	}
+}
+
+func TestAuthorizedSessionReturnsErrorWithoutSession(t *testing.T) {
+	t.Setenv("PKEEPER_SESSION_PATH", filepath.Join(t.TempDir(), "session.json"))
+
+	authorized, err := AuthorizedSession()
+	if err == nil {
+		t.Fatal("expected error when session file is missing")
+	}
+	if authorized {
+		t.Fatal("expected unauthorized state when session file is missing")
+	}
+}
+
 type roundTripFunc func(req *http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {

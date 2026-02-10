@@ -20,7 +20,7 @@ type Config struct {
 	MigrationsPath string
 }
 
-func Load() Config {
+func Load() (Config, error) {
 	v := viper.New()
 	v.SetDefault("SERVER_URL", "http://localhost:8080")
 	v.SetDefault("POSTGRES_DSN", "")
@@ -32,7 +32,7 @@ func Load() Config {
 	if err := v.ReadInConfig(); err != nil {
 		var configFileNotFoundError viper.ConfigFileNotFoundError
 		if !errors.As(err, &configFileNotFoundError) && !os.IsNotExist(err) {
-			panic(err)
+			return Config{}, err
 		}
 	}
 	v.AutomaticEnv()
@@ -45,16 +45,19 @@ func Load() Config {
 		RefreshTTL:     v.GetDuration("REFRESH_TTL"),
 		MigrationsPath: v.GetString("MIGRATIONS_PATH"),
 	}
+	return cfg, nil
+}
 
-	flag.StringVar(&cfg.ServerURL, "server-url", cfg.ServerURL, "Server base URL")
-	flag.StringVar(&cfg.POSTGRES_DSN, "dsn", cfg.POSTGRES_DSN, "PostgreSQL DSN")
-	flag.StringVar(&cfg.JWTSecret, "jwt-secret", cfg.JWTSecret, "JWT signing secret")
-	flag.DurationVar(&cfg.AccessTTL, "access-ttl", cfg.AccessTTL, "JWT access token TTL")
-	flag.DurationVar(&cfg.RefreshTTL, "refresh-ttl", cfg.RefreshTTL, "Refresh token TTL")
-	flag.StringVar(&cfg.MigrationsPath, "migrations-path", cfg.MigrationsPath, "Migrations directory")
-	flag.Parse()
-
-	return cfg
+func BindFlags(fs *flag.FlagSet, cfg *Config) {
+	if fs == nil || cfg == nil {
+		return
+	}
+	fs.StringVar(&cfg.ServerURL, "server-url", cfg.ServerURL, "Server base URL")
+	fs.StringVar(&cfg.POSTGRES_DSN, "dsn", cfg.POSTGRES_DSN, "PostgreSQL DSN")
+	fs.StringVar(&cfg.JWTSecret, "jwt-secret", cfg.JWTSecret, "JWT signing secret")
+	fs.DurationVar(&cfg.AccessTTL, "access-ttl", cfg.AccessTTL, "JWT access token TTL")
+	fs.DurationVar(&cfg.RefreshTTL, "refresh-ttl", cfg.RefreshTTL, "Refresh token TTL")
+	fs.StringVar(&cfg.MigrationsPath, "migrations-path", cfg.MigrationsPath, "Migrations directory")
 }
 
 func ResolveHTTPAddr(serverURL string) string {

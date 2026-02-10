@@ -53,10 +53,22 @@ func saveSession(sess session) error {
 	return os.WriteFile(path, encoded, 0o600)
 }
 
-func HasAuthorizedSession() bool {
+func AuthorizedSession() (bool, error) {
 	sess, err := loadSession()
+	if err != nil {
+		return false, err
+	}
+	return HasAuthorizedTokens(sess.AccessToken, sess.RefreshToken), nil
+}
+
+func HasAuthorizedTokens(accessToken, refreshToken string) bool {
+	return strings.TrimSpace(accessToken) != "" && strings.TrimSpace(refreshToken) != ""
+}
+
+func HasAuthorizedSession() bool {
+	authorized, err := AuthorizedSession()
 	if err != nil {
 		return false
 	}
-	return strings.TrimSpace(sess.AccessToken) != "" && strings.TrimSpace(sess.RefreshToken) != ""
+	return authorized
 }

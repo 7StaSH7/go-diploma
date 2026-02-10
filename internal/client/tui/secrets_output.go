@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"sort"
 	"strings"
 	"time"
@@ -93,6 +94,46 @@ func cloneStringMap(source map[string]string) map[string]string {
 	return copyMap
 }
 
+func secretItemsSeq(items []secretOutputItem) iter.Seq[secretOutputItem] {
+	return func(yield func(secretOutputItem) bool) {
+		for _, item := range items {
+			if !yield(item) {
+				return
+			}
+		}
+	}
+}
+
+func filterSecretItems(seq iter.Seq[secretOutputItem], keep func(secretOutputItem) bool) iter.Seq[secretOutputItem] {
+	return func(yield func(secretOutputItem) bool) {
+		for item := range seq {
+			if !keep(item) {
+				continue
+			}
+			if !yield(item) {
+				return
+			}
+		}
+	}
+}
+
+func collectSecretItems(seq iter.Seq[secretOutputItem]) []secretOutputItem {
+	items := make([]secretOutputItem, 0)
+	for item := range seq {
+		items = append(items, item)
+	}
+	return items
+}
+
+func anySecretItem(seq iter.Seq[secretOutputItem], match func(secretOutputItem) bool) bool {
+	for item := range seq {
+		if match(item) {
+			return true
+		}
+	}
+	return false
+}
+
 func loadSecretSelectionCmd(filters map[string]string) tea.Cmd {
 	selectionFilters := cloneStringMap(filters)
 	return func() tea.Msg {
@@ -141,23 +182,22 @@ func applySecretSelectionFilters(items []secretOutputItem, filters map[string]st
 	tagQuery := parseTagQuery(filters[fieldFindTags])
 	dateQuery := strings.TrimSpace(filters[fieldFindDate])
 
-	matched := make([]secretOutputItem, 0, len(items))
-	for _, item := range items {
+	seq := filterSecretItems(secretItemsSeq(items), func(item secretOutputItem) bool {
 		if titleQuery != "" {
 			title := strings.ToLower(strings.TrimSpace(item.MetaOpen.Title))
 			if !strings.Contains(title, titleQuery) {
-				continue
+				return false
 			}
 		}
 		if len(tagQuery) > 0 && !secretMatchesTags(item, tagQuery) {
-			continue
+			return false
 		}
 		if !isOnOrAfterDate(item.UpdatedAt, dateQuery) {
-			continue
+			return false
 		}
-		matched = append(matched, item)
-	}
-	return matched
+		return true
+	})
+	return collectSecretItems(seq)
 }
 
 func isOnOrAfterDate(updatedAt, dateQuery string) bool {
@@ -260,12 +300,9 @@ func revalidateSecretsAfterMutation(actionID, affectedID string, shouldExist boo
 }
 
 func secretIDExists(items []secretOutputItem, id string) bool {
-	for _, item := range items {
-		if strings.TrimSpace(item.ID) == id {
-			return true
-		}
-	}
-	return false
+	return anySecretItem(secretItemsSeq(items), func(item secretOutputItem) bool {
+		return strings.TrimSpace(item.ID) == id
+	})
 }
 
 func extractDate(timestamp string) string {
